@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: pokedex
+      POSTGRES_PASSWORD: pokedex
+    volumes:
+      - ./infra/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pokedex"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/authdb
+      DB_USERNAME: pokedex
+      DB_PASSWORD: pokedex
+      JWT_SECRET: ${JWT_SECRET:-change-me-this-is-a-dev-only-secret-of-at-least-32-bytes}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  pokemon-service:
+    build: ./pokemon-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/pokemondb
+      DB_USERNAME: pokedex
+      DB_PASSWORD: pokedex
+      JWT_SECRET: ${JWT_SECRET:-change-me-this-is-a-dev-only-secret-of-at-least-32-bytes}
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      # Point at the host to debug a service in the IDE, e.g. POKEMON_SERVICE_URL=http://172.17.0.1:8082
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      POKEMON_SERVICE_URL: ${POKEMON_SERVICE_URL:-http://pokemon-service:8082}
+#      POKEMON_SERVICE_URL: ${POKEMON_SERVICE_URL:-http://172.17.0.1:8082}
+    ports:
+      - "8080:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      pokemon-service:
+        condition: service_healthy
+
+volumes:
+  pgdata:

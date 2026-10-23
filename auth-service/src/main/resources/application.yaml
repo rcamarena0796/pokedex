@@ -1,0 +1,52 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  # Default profile: PostgreSQL (start it with `docker compose up postgres`).
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${DB_USERNAME:pokedex}
+    password: ${DB_PASSWORD:pokedex}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+security:
+  jwt:
+    # Must match pokemon-service. Override with JWT_SECRET in any real environment.
+    secret: ${JWT_SECRET:change-me-this-is-a-dev-only-secret-of-at-least-32-bytes}
+    issuer: https://auth.pokedex.local
+    expiration: 2h
+
+app:
+  seed:
+    enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+  # In-memory H2 (PostgreSQL compatibility mode): runs without Docker and is used by the integration tests.
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
